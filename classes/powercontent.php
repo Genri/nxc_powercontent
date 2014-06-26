@@ -33,12 +33,14 @@ class nxcPowerContent {
 	 *     'additionalParentNodeIDs' => array                   additionalParentNodes, Additional parent node ids
 	 *     'versionStatus'           => int                     Published version status, not necessary
 	 *     'visibility'              => bool                    Nodes visibility
+	 *     'useTriggers'             => bool                    Control whether content publish events should be executed or not (default true)	 
 	 * )
 	 * @return eZContentObject|bool Created content object if it was created, otherwise false
 	 */
 	public function createObject( $params ) {
 		$this->db->begin();
 
+        $useTriggers          = ( isset( $params['useTriggers'] ) ) ? $params['useTriggers'] : true;
 		$class = ( isset( $params['class'] ) ) ? $params['class'] : eZContentClass::fetchByIdentifier( $params['classIdentifier'] );
 		if( $class instanceof eZContentClass === false ) {
 			$this->error( 'Can`t fetch class by Identifier: ' . $params['classIdentifier'] );
@@ -131,7 +133,9 @@ class nxcPowerContent {
 			array(
 				'object_id' => $object->attribute( 'id' ),
 				'version'   => $object->attribute( 'current_version' )
-			)
+			),
+			null,
+			$useTriggers
 		);
 
 		$this->db->commit();
@@ -156,11 +160,24 @@ class nxcPowerContent {
 	 *     'parentNodeID'            => int                     Content object`s parent node ID, not necessary
 	 *     'additionalParentNodeIDs' => array                   additionalParentNodeIDs, Additional parent node ids
 	 *     'visibility'              => bool                    Nodes visibility
+	 *     'updateRemoteID'          => string                  Content object`s remote ID, not necessary (will update object's remote_id if provided)
+	 *     'useTriggers'             => bool                    Control whether content publish events should be executed or not (default true)
 	 * )
 	 * @return bool true if object was updated, otherwise false
 	 */
  	public function updateObject( $params ) {
  		$this->db->begin();
+ 		
+		$updateRemoteID       = ( isset( $params['updateRemoteID'] ) ) ? $params['updateRemoteID'] : false;
+		$useTriggers          = ( isset( $params['useTriggers'] ) ) ? $params['useTriggers'] : true;
+		if( $updateRemoteID ) {
+			$object = eZContentObject::fetchByRemoteID( $updateRemoteID );
+			if( $object instanceof eZContentObject ) {
+				$this->db->rollback();
+				$this->error( 'Object "' . $object->attribute( 'name' ) . '" (class: ' . $object->attribute( 'class_name' ) . ') with remote ID ' . $updateRemoteID . ' allready exist.' );
+				return false;
+			}
+		}		
 
  		$object = $params['object'];
 		if( $object instanceof eZContentObject === false ) {
@@ -169,6 +186,11 @@ class nxcPowerContent {
 			return false;
 		}
 		$this->debug( 'Starting update "' . $object->attribute( 'name' ) . '" object (class: ' . $object->attribute( 'class_name' ) . ') with remote ID ' . $object->attribute( 'remote_id' ) );
+
+		if( $updateRemoteID ) {
+			$object->setAttribute( 'remote_id',  $updateRemoteID );
+			$object->store();
+		}		
 
 		$visibility = ( isset( $params['visibility'] ) ) ? (bool) $params['visibility'] : true;
 		$parentNode = false;
@@ -265,7 +287,9 @@ class nxcPowerContent {
 			array(
 				'object_id' => $object->attribute( 'id' ),
 				'version'   => $object->attribute( 'current_version' )
-			)
+			),
+			null,
+			$useTriggers
 		);
 
 		$this->db->commit();
