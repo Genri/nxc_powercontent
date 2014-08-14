@@ -75,7 +75,7 @@ class nxcPowerContent {
 		$remoteID       = ( isset( $params['remoteID'] ) ) ? $params['remoteID'] : false;
 		$publishDate    = ( isset( $params['publishDate'] ) ) ? $params['publishDate'] : time();
 		$versionStatus  = ( isset( $params['versionStatus'] ) ) ? $params['versionStatus'] : eZContentObjectVersion::STATUS_PUBLISHED;
-		$visibility     = ( isset( $params['visibility'] ) ) ? (bool) $params['visibility'] : true;
+		$visibility = ( isset( $params['visibility'] ) ) ? (bool) $params['visibility'] : true;
 
 		if( $remoteID ) {
 			$object = eZContentObject::fetchByRemoteID( $remoteID );
@@ -159,7 +159,7 @@ class nxcPowerContent {
 	 *     'parentNode'              => eZContentObjectTreeNode Parent node object, not necessary
 	 *     'parentNodeID'            => int                     Content object`s parent node ID, not necessary
 	 *     'additionalParentNodeIDs' => array                   additionalParentNodeIDs, Additional parent node ids
-	 *     'visibility'              => bool                    Nodes visibility
+	 *     'visibility'              => bool                    Nodes visibility, if 'ignore' is passed visibility won't be updated
 	 *     'updateRemoteID'          => string                  Content object`s remote ID, not necessary (will update object's remote_id if provided)
 	 *     'useTriggers'             => bool                    Control whether content publish events should be executed or not (default true)
 	 * )
@@ -191,8 +191,9 @@ class nxcPowerContent {
 			$object->setAttribute( 'remote_id',  $updateRemoteID );
 			$object->store();
 		}		
-
-		$visibility = ( isset( $params['visibility'] ) ) ? (bool) $params['visibility'] : true;
+        
+        if ($params['visibility']!=='ignore')
+		    $visibility = ( isset( $params['visibility'] ) ) ? (bool) $params['visibility'] : true;
 		$parentNode = false;
 		if( isset( $params['parentNode'] ) ) {
 			$parentNode = $params['parentNode'];
@@ -294,7 +295,9 @@ class nxcPowerContent {
 
 		$this->db->commit();
 
-		$this->updateVisibility( $object, $visibility );
+		if( $params['visibility'] !== 'ignore' ) {
+			$this->updateVisibility( $object, $visibility );
+		}
 
 		$this->debug( '[Updated] "' . $object->attribute( 'name' ) . '"', array( 'yellow' ) );
 		return true;
